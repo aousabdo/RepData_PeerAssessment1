@@ -2,11 +2,13 @@
 <!-- 
 Load required R libraries
 -->
-```{r, echo=FALSE}
+First we'll start by loading all the needed libraries
+```{r}
 library(lattice)
 library(ggplot2)
 library(lubridate)
 library(xtable)
+library(plyr)
 ```
 
 <!--
@@ -50,11 +52,13 @@ hist(stepsTotDay, breaks=length(stepsTotDay), main="Distribution of Total Steps 
 
 Next we will calculate and tabulate the Mean and Median of the steps taken each day:
 
-
 ```{r, cache=TRUE, results='asis', cache=TRUE}
-Means   <- with(data, tapply(steps, date, mean, na.rm=TRUE))
-Medians <- with(data, tapply(steps, date, median, na.rm=TRUE))
-df <- data.frame(Means=Means, Medians=Medians)
+## Get the mean and median values for each day
+Means   <-  with(data, aggregate(x=steps, by=list(date), FUN=mean))
+Medians <-  with(data, aggregate(x=steps, by=list(date), FUN=median))
+## Put in a dataframe
+df <- data.frame(Date= as.character(Means$Group.1), Means = Means$x, Medians = Medians$x)
+## Put in a table and print it
 xt <- xtable(df, caption="Mean and Median Steps Per Day", )
 print(xt, type="html", floating=FALSE)
 ```
@@ -63,21 +67,75 @@ print(xt, type="html", floating=FALSE)
 
 ```{r timeserisplot, cache=TRUE, fig.align='center', fig.width=12}
 Interval <- data[as.character(data$date)=="2012-10-01",]$interval
-Interval_Avg <- with(data, tapply(steps, interval, mean, na.rm=TRUE))
-plot(Interval, Interval_Avg, "l", col="blue", main="Average Steps per 5 Minute Interval", xlab="Interval", ylab="Steps Average", lwd=2)
+Interval_Avg <- with(data, aggregate(steps, list(interval), mean, na.rm=TRUE))
+plot(Interval, Interval_Avg$x, "l", col="blue", main="Average Steps per 5 Minute Interval", xlab="Interval", ylab="Steps Average", lwd=2)
 ```
 
 ```{r maxs}
-Max <- max(Interval_Avg)
-Max_Interval <- Interval[max(Interval_Avg)]
+Max <- max(Interval_Avg$x)
+Max_Interval <- Interval[max(Interval_Avg$x)]
+cat(sprintf("Maximum average is %.2f which occurs on the %.0f 5-minute interval", Max, Max_Interval))
 ```
 
-The 5-minute interval that on average contains the maximum number of steps is the `r Max_Interval` interval with the maximum average of `r Max` 
+The 5-minute interval that, on average, contains the maximum number of steps is the **`r Max_Interval`** interval with the maximum average of **`r Max`** steps.
+
 ## Imputing missing values
+To get the total number of missing values we use the `count` function from the `plyr` package as follows:
 
+```{r numberofNAs}
+totalNAs <- count(data[is.na(data$steps),]$steps)[2]
+```
 
+There are a total of **`r totalNAs`** rows with `NA` entries. 
+
+The strategy we will use to fill in the missing values is to use the mean of that 5-minute interval, i.e. the values presented in the timeline plot above. 
+
+```{r fillNAs, cache=TRUE}
+## Get intervals for NAs in the data
+NAIntervals <- data[is.na(data$steps),]$interval
+## Subet dataframe on the NAs
+Fill <- Interval_Avg[Interval_Avg$Group.1 %in% NAIntervals,]
+## copy the old data set to a new one which will be modified to contain no NAs
+## but first let's rearrange the columns
+data <- data[c("date", "steps", "interval")]
+dataNew <- data
+for (i in 1:nrow(dataNew)){
+        if(is.na(dataNew$steps[i])){
+                dataNew$steps[i] <- Fill$x[i]                
+        }
+}
+````
+
+The **new data** set has no `NAs` in it as can be seen below:
+```{r}
+head(dataNew, 20)
+```
+
+compared to the **old data** set which still has `NAs` in it:
+```{r}
+head(data, 20)
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r stepsTotDayPlotNew, fig.align='center', fig.height=6, cache=TRUE}
+stepsTotDay <- with(dataNew, tapply(steps, date, sum, na.rm=TRUE))
+hist(stepsTotDay, breaks=length(stepsTotDay), main="Distribution of Total Steps Taken Per Day", xlab="Total Number of Steps per day", col="red")
+```
+
+
+```{r, cache=TRUE, results='asis', cache=TRUE}
+## Get the mean and median values for each day
+Means   <-  with(dataNew, aggregate(x=steps, by=list(date), FUN=mean))
+Medians <-  with(dataNew, aggregate(x=steps, by=list(date), FUN=median))
+## Put in a dataframe
+df <- data.frame(Date= as.character(Means$Group.1), Means = Means$x, Medians = Medians$x)
+## Put in a table and print it
+xt <- xtable(df, caption="Mean and Median Steps Per Day", )
+print(xt, type="html", floating=FALSE)
+```
+
+
 
 
 
