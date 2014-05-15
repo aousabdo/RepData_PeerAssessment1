@@ -1,20 +1,101 @@
 # Reproducible Research: Peer Assessment 1
+<!-- 
+Load required R libraries
+-->
+```{r, echo=FALSE}
+library(lattice)
+library(ggplot2)
+library(lubridate)
+library(xtable)
+```
 
+<!--
+modify
+-->
 
 ## Loading and preprocessing the data
+We will start by loading and doing some processing of the dataset we have
 
+```{r loaddata}
+data <- read.table(unz("./activity.zip", "activity.csv"), header=TRUE, sep=",", na.strings="NA")
+```
 
+Take a quick look at the data with the `str` command in R: 
+
+```{r}
+str(data)
+```
+
+Next we will convert the `date` column in the dataset to date values with the `lubridate` package
+
+```{r processdata}
+data$date <- ymd(data$date)
+```
+
+And our new data frame looks like: 
+
+```{r}
+str(data)
+```
 
 ## What is mean total number of steps taken per day?
 
+First let's make a histogram of the total number of steps taken per day.   
+Get total number of steps for each day and then histogram the results:
 
+```{r stepsTotDayPlot, fig.align='center', fig.height=6, cache=TRUE}
+stepsTotDay <- with(data, tapply(steps, date, sum, na.rm=TRUE))
+hist(stepsTotDay, breaks=length(stepsTotDay), main="Distribution of Total Steps Taken Per Day", xlab="Total Number of Steps per day", col="steelblue")
+```
+
+Next we will calculate and tabulate the Mean and Median of the steps taken each day:
+
+
+```{r, cache=TRUE, results='asis', cache=TRUE}
+Means   <- with(data, tapply(steps, date, mean, na.rm=TRUE))
+Medians <- with(data, tapply(steps, date, median, na.rm=TRUE))
+df <- data.frame(Means=Means, Medians=Medians)
+xt <- xtable(df, caption="Mean and Median Steps Per Day", )
+print(xt, type="html", floating=FALSE)
+```
 
 ## What is the average daily activity pattern?
 
+```{r timeserisplot, cache=TRUE, fig.align='center', fig.width=12}
+Interval <- data[as.character(data$date)=="2012-10-01",]$interval
+Interval_Avg <- with(data, tapply(steps, interval, mean, na.rm=TRUE))
+plot(Interval, Interval_Avg, "l", col="blue", main="Average Steps per 5 Minute Interval", xlab="Interval", ylab="Steps Average", lwd=2)
+```
 
+```{r maxs}
+Max <- max(Interval_Avg)
+Max_Interval <- Interval[max(Interval_Avg)]
+```
 
+The 5-minute interval that on average contains the maximum number of steps is the `r Max_Interval` interval with the maximum average of `r Max` 
 ## Imputing missing values
 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+
+
+
+<!--
+To answer this let's first look at the total number of steps taken each day.  
+For this step we will use the `lattice` package: 
+
+```{r stepsday1, cache=TRUE}
+histogram(~ steps |date, data=data)
+```
+
+We can have a more clear plot of the distributions of steps per day if we histogram the 
+log of the steps as follows: 
+
+```{r stepsday2, cache=TRUE}
+histogram(~ log10(steps) |date, data=data)
+```
+
+To get the mean, median, and total number of steps taken per day we do:
+-->
