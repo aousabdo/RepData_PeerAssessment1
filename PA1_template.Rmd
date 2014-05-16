@@ -46,22 +46,19 @@ First let's make a histogram of the total number of steps taken per day.
 Get total number of steps for each day and then histogram the results:
 
 ```{r stepsTotDayPlot, fig.align='center', fig.height=6, cache=TRUE}
-stepsTotDay <- with(data, tapply(steps, date, sum, na.rm=TRUE))
-hist(stepsTotDay, breaks=length(stepsTotDay), main="Distribution of Total Steps Taken Per Day", xlab="Total Number of Steps per day", col="steelblue")
+stepsTotDay <- with(data, aggregate(steps, list(date), sum))
+hist(stepsTotDay$x, main="Distribution of Total Steps Taken Per Day", xlab="Total Number of Steps per day", col="steelblue")
 ```
 
-Next we will calculate and tabulate the Mean and Median of the steps taken each day:
+Next we will calculate and Mean and Median of the total steps taken each day:
 
-```{r, cache=TRUE, results='asis', cache=TRUE}
+```{r stats, cache=TRUE, results='asis', cache=TRUE}
 ## Get the mean and median values for each day
-Means   <-  with(data, aggregate(x=steps, by=list(date), FUN=mean))
-Medians <-  with(data, aggregate(x=steps, by=list(date), FUN=median))
-## Put in a dataframe
-df <- data.frame(Date= as.character(Means$Group.1), Means = Means$x, Medians = Medians$x)
-## Put in a table and print it
-xt <- xtable(df, caption="Mean and Median Steps Per Day", )
-print(xt, type="html", floating=FALSE)
+Mean   <-  mean(stepsTotDay$x, na.rm=TRUE)
+Median <-  median(stepsTotDay$x, na.rm=TRUE)
 ```
+
+The mean of the total number of steps taken per day is **`r as.integer(Mean)`** while the median is **`r as.integer(Median)`**
 
 ## What is the average daily activity pattern?
 
@@ -73,7 +70,7 @@ plot(Interval, Interval_Avg$x, "l", col="blue", main="Average Steps per 5 Minute
 
 ```{r maxs}
 Max <- max(Interval_Avg$x)
-Max_Interval <- Interval[max(Interval_Avg$x)]
+Max_Interval <- Interval[which.max(Interval_Avg$x)]
 cat(sprintf("Maximum average is %.2f which occurs on the %.0f 5-minute interval", Max, Max_Interval))
 ```
 
@@ -116,44 +113,47 @@ compared to the **old data** set which still has `NAs` in it:
 head(data, 20)
 ```
 
-## Are there differences in activity patterns between weekdays and weekends?
 
 ```{r stepsTotDayPlotNew, fig.align='center', fig.height=6, cache=TRUE}
-stepsTotDay <- with(dataNew, tapply(steps, date, sum, na.rm=TRUE))
-hist(stepsTotDay, breaks=length(stepsTotDay), main="Distribution of Total Steps Taken Per Day", xlab="Total Number of Steps per day", col="red")
+stepsTotDayNew <- with(dataNew, aggregate(steps, list(date), sum))
+hist(stepsTotDayNew$x, main="Distribution of Total Steps Taken Per Day", xlab="Total Number of Steps per day", col="red")
 ```
 
 
-```{r, cache=TRUE, results='asis', cache=TRUE}
+```{r statsNew, cache=TRUE, results='asis', cache=TRUE}
 ## Get the mean and median values for each day
-Means   <-  with(dataNew, aggregate(x=steps, by=list(date), FUN=mean))
-Medians <-  with(dataNew, aggregate(x=steps, by=list(date), FUN=median))
-## Put in a dataframe
-df <- data.frame(Date= as.character(Means$Group.1), Means = Means$x, Medians = Medians$x)
-## Put in a table and print it
-xt <- xtable(df, caption="Mean and Median Steps Per Day", )
-print(xt, type="html", floating=FALSE)
+Mean  <-  mean(stepsTotDayNew$x, na.rm=TRUE)
+Median <-  median(stepsTotDayNew$x, na.rm=TRUE)
+```
+
+The mean of the total number of steps taken per day is **`r as.integer(Mean)`** while the median is **`r as.integer(Median)`**.  
+<font color="blue">_**The mean and the median values didn't change when imputing the missing values.**_</font>
+
+## Are there differences in activity patterns between weekdays and weekends?
+First we will add new factor variable to the dataframe to distinguish weekdays from weekends
+
+```{r weekend, cache=TRUE}
+dataNew$weekday <- weekdays(dataNew$date)
+## Function to factor weekdays in weekend and weekdays
+dayofweek <- function(x){
+        if(weekdays(x)=="Satruday" | weekdays(x)=="Sunday"){
+                return("Weekend")
+        }else{return("Weekday")}
+}
+## add new weekend/weekday factor to the dataframe
+dataNew$weekend <- as.factor(sapply(dataNew$date, FUN=dayofweek))
 ```
 
 
-
-
-
-
-<!--
-To answer this let's first look at the total number of steps taken each day.  
-For this step we will use the `lattice` package: 
-
-```{r stepsday1, cache=TRUE}
-histogram(~ steps |date, data=data)
+Now we split the data and plot the 5-minute averages for each case separately
+```{r timeserisplotNew, cache=TRUE, fig.align='center', fig.width=8}
+weekdaydata <- split(dataNew, dataNew$weekend)[[1]]
+weekenddata <- split(dataNew, dataNew$weekend)[[2]]
+weekday_Avg <- with(weekdaydata, aggregate(steps, list(interval), mean, na.rm=TRUE))
+weekend_Avg <- with(weekenddata, aggregate(steps, list(interval), mean, na.rm=TRUE))
+par(mfrow=c(2,1))
+plot(Interval, weekday_Avg$x, "l", col="blue", main="Weekday", xlab="Interval", ylab="Steps Average", lwd=2)
+plot(Interval, weekend_Avg$x, "l", col="blue", main="Weekend", xlab="Interval", ylab="Steps Average", lwd=2)
 ```
 
-We can have a more clear plot of the distributions of steps per day if we histogram the 
-log of the steps as follows: 
-
-```{r stepsday2, cache=TRUE}
-histogram(~ log10(steps) |date, data=data)
-```
-
-To get the mean, median, and total number of steps taken per day we do:
--->
+From the plot above, it is clear that there is a difference in the activities between the weekend and weekdays
